@@ -4,38 +4,72 @@ import { google } from 'googleapis';
 
 import nodePath from 'node:path';
 import fs from 'node:fs';
-import prompts from 'prompts';
 
-import config from './src/config.js';
-import { delay, ensurePath, fsExists, readDirRecursive } from './src/utils.js';
+import CONFIG from './src/config.js';
+import {
+  delay,
+  ensurePath,
+  fsExists,
+  readDirRecursive,
+  writeJSON,
+  readJSON,
+  prompt,
+} from './src/utils.js';
 
-// config.clear();
+const writeTokens = async (tokens) => {
+  await writeJSON(nodePath.join(CONFIG.configPath, 'tokens.json'), tokens);
+};
+const readTokens = async () => {
+  try {
+    const tokens = await readJSON(
+      nodePath.join(CONFIG.configPath, 'tokens.json'),
+    );
+
+    return tokens;
+  } catch (error) {
+    console.log('could not read tokens', error);
+  }
+
+  return undefined;
+};
+
+const readCurrentState = async () => {
+  try {
+    const state = await readJSON(
+      nodePath.join(CONFIG.configPath, 'state.json'),
+    );
+
+    return state;
+  } catch (error) {
+    console.log('could not read state', error);
+  }
+
+  return undefined;
+};
+const writeCurrentState = async (state) => {
+  await writeJSON(nodePath.join(CONFIG.configPath, 'state.json'), state);
+};
 
 const setupAuth = async () => {
   const oauth2Client = new google.auth.OAuth2(
-    config.get('oauthClientId'),
-    config.get('oauthClientSecret'),
-    config.get('oauthRedirectUrl'),
+    CONFIG.oauthClientId,
+    CONFIG.oauthClientSecret,
+    CONFIG.oauthRedirectUrl,
   );
 
   oauth2Client.on('tokens', (tokens) => {
     console.log('setting tokens!');
-    config.set('tokens', tokens);
+    writeTokens(tokens);
   });
 
-  let tokens = config.get('tokens');
+  let tokens = await readTokens();
   if (!tokens) {
     const url = oauth2Client.generateAuthUrl({
       scope: ['https://www.googleapis.com/auth/drive'],
     });
     console.log(url);
-    const promptsResponse = await prompts({
-      type: 'text',
-      name: 'code',
-      message: 'Code:',
-    });
-
-    tokens = (await oauth2Client.getToken(promptsResponse.code)).tokens;
+    const code = await prompt('Code:');
+    tokens = (await oauth2Client.getToken(code)).tokens;
   }
 
   oauth2Client.setCredentials(tokens);
@@ -79,7 +113,7 @@ const downloadDriveFile = async (fileId, dataPath) => {
   await response.data.pipe(destinationStream);
 };
 const syncDriveFolder = async (folderFileId, currentPath = '/') => {
-  const dataPath = config.get('dataPath');
+  const dataPath = CONFIG.dataPath;
 
   await ensurePath(nodePath.join(dataPath, currentPath));
 
@@ -106,7 +140,7 @@ const syncDriveFolder = async (folderFileId, currentPath = '/') => {
 };
 
 const saveCurrentSyncState = async () => {
-  const dataPath = config.get('dataPath');
+  const dataPath = CONFIG.dataPath;
   const state = {
     files: [],
     lastRun: new Date(),
@@ -122,7 +156,7 @@ const saveCurrentSyncState = async () => {
 
   console.log('saving current state', state);
 
-  config.set('currentState', state);
+  await writeCurrentState(state);
 };
 
 const getDriveFileIdFromPath = async (drivePath, rootFolderFileId) => {
@@ -152,9 +186,9 @@ const deleteDriveFile = async (fileId) => {
 };
 
 const removeDeletedFilesFromDrive = async () => {
-  const dataPath = config.get('dataPath');
-  const rootFolderFileId = config.get('rootFolder');
-  const lastState = config.get('currentState');
+  const dataPath = CONFIG.dataPath;
+  const rootFolderFileId = CONFIG.rootFolder;
+  const lastState = await readCurrentState();
 
   if (lastState && Array.isArray(lastState.files)) {
     for (const filePath of lastState.files) {
@@ -175,10 +209,12 @@ const removeDeletedFilesFromDrive = async () => {
   }
 };
 
+await ensurePath(CONFIG.configPath);
+await ensurePath(CONFIG.dataPath);
 await setupAuth();
 
-const intervalMs = config.get('syncIntervalMs');
-const rootFolderId = config.get('rootFolder');
+const intervalMs = CONFIG.syncIntervalMs;
+const rootFolderId = CONFIG.rootFolder;
 
 console.log('Starting!');
 let loopRunning = true;

@@ -1,5 +1,6 @@
 import fsp from 'node:fs/promises';
 import nodePath from 'node:path';
+import readline from 'node:readline';
 
 export const delay = (ms) => {
   return new Promise((resolve) => {
@@ -40,4 +41,28 @@ export const readDirRecursive = async (path) => {
   }
 
   return result;
+};
+
+export const readJSON = async (path) => {
+  const json = JSON.parse(await fsp.readFile(path));
+
+  return json;
+};
+
+export const writeJSON = async (path, data) => {
+  await fsp.writeFile(path, JSON.stringify(data));
+};
+
+export const prompt = async (question) => {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    rl.question(`${question} `, (answer) => {
+      resolve(answer);
+      rl.close();
+    });
+  });
 };
