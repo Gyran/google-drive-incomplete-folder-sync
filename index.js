@@ -67,8 +67,7 @@ const setupAuth = async () => {
     const url = oauth2Client.generateAuthUrl({
       scope: ['https://www.googleapis.com/auth/drive'],
     });
-    console.log(url);
-    const code = await prompt('Code:');
+    const code = await prompt(`${url}\nCode:`);
     tokens = (await oauth2Client.getToken(code)).tokens;
   }
 
@@ -209,6 +208,14 @@ const removeDeletedFilesFromDrive = async () => {
   }
 };
 
+const handleExitSignal = (signal) => {
+  console.log(`Received ${signal}, exiting`);
+  process.exit(0);
+};
+
+process.on('SIGINT', handleExitSignal);
+process.on('SIGTERM', handleExitSignal);
+
 await ensurePath(CONFIG.configPath);
 await ensurePath(CONFIG.dataPath);
 await setupAuth();
@@ -223,7 +230,7 @@ while (loopRunning) {
   await syncDriveFolder(rootFolderId);
   await saveCurrentSyncState();
 
-  console.log('Waiting for next loop');
+  console.log(`Waiting ${CONFIG.syncIntervalMs} ms for next loop`);
   await delay(intervalMs);
 }
 
