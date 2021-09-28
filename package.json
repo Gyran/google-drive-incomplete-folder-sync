@@ -1,6 +1,6 @@
 {
   "name": "@gyran/google-drive-incomplete-folder-sync",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "very simple and naive incomplete folder sync with google drive for my personal use",
   "main": "index.js",
   "scripts": {
