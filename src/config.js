@@ -40,6 +40,9 @@ const schema = {
   },
 };
 
-const config = new Conf({ schema });
+const config = new Conf({
+  schema,
+  projectName: '@gyran/google-drive-incomplete-folder-sync',
+});
 
 export default config;

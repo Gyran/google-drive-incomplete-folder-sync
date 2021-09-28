@@ -1,12 +1,17 @@
 {
   "name": "@gyran/google-drive-incomplete-folder-sync",
-  "version": "1.0.0",
+  "version": "0.0.10",
   "description": "very simple and naive incomplete folder sync with google drive for my personal use",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node -r dotenv/config index.js"
   },
+  "files": [
+    "index.js",
+    "src/"
+  ],
+  "bin": "index.js",
   "type": "module",
   "author": "Gustav Ahlberg",
   "license": "ISC",

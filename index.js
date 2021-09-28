@@ -1,11 +1,15 @@
+#!/usr/bin/env node
+
 import { google } from 'googleapis';
 
 import nodePath from 'node:path';
 import fs from 'node:fs';
 import prompts from 'prompts';
 
-import config from './config.js';
-import { delay, ensurePath, fsExists, readDirRecursive } from './utils.js';
+import config from './src/config.js';
+import { delay, ensurePath, fsExists, readDirRecursive } from './src/utils.js';
+
+// config.clear();
 
 const setupAuth = async () => {
   const oauth2Client = new google.auth.OAuth2(
@@ -15,6 +19,7 @@ const setupAuth = async () => {
   );
 
   oauth2Client.on('tokens', (tokens) => {
+    console.log('setting tokens!');
     config.set('tokens', tokens);
   });
 
@@ -23,10 +28,11 @@ const setupAuth = async () => {
     const url = oauth2Client.generateAuthUrl({
       scope: ['https://www.googleapis.com/auth/drive'],
     });
+    console.log(url);
     const promptsResponse = await prompts({
       type: 'text',
       name: 'code',
-      message: url,
+      message: 'Code:',
     });
 
     tokens = (await oauth2Client.getToken(promptsResponse.code)).tokens;
@@ -54,7 +60,8 @@ const listDriveFiles = async (folderFileId) => {
 };
 
 const downloadDriveFile = async (fileId, dataPath) => {
-  const exists = fsExists(dataPath);
+  const exists = await fsExists(dataPath);
+
   if (exists) {
     // we already have the file, skip downloading it
     return;
@@ -84,6 +91,8 @@ const syncDriveFolder = async (folderFileId, currentPath = '/') => {
 
   if (filesListResponse.data.files) {
     for (const file of filesListResponse.data.files) {
+      console.log('syncing file', file);
+
       if (file.capabilities.canListChildren) {
         await syncDriveFolder(file.id, nodePath.join(currentPath, file.name));
       } else if (file.capabilities.canDownload) {
@@ -106,7 +115,12 @@ const saveCurrentSyncState = async () => {
   try {
     const filesInDestination = await readDirRecursive(dataPath);
     state.files = filesInDestination;
-  } catch (error) {}
+  } catch (error) {
+    console.log('failed to read datadir', dataPath);
+    console.log('error', error);
+  }
+
+  console.log('saving current state', state);
 
   config.set('currentState', state);
 };
@@ -134,7 +148,7 @@ const getDriveFileIdFromPath = async (drivePath, rootFolderFileId) => {
 };
 
 const deleteDriveFile = async (fileId) => {
-  const a = await drive.files.delete({ fileId });
+  await drive.files.delete({ fileId });
 };
 
 const removeDeletedFilesFromDrive = async () => {
@@ -154,6 +168,7 @@ const removeDeletedFilesFromDrive = async () => {
           rootFolderFileId,
         );
 
+        console.log('will delete drive file', fileId, drivePath);
         await deleteDriveFile(fileId);
       }
     }
@@ -165,13 +180,14 @@ await setupAuth();
 const intervalMs = config.get('syncIntervalMs');
 const rootFolderId = config.get('rootFolder');
 
+console.log('Starting!');
 let loopRunning = true;
 while (loopRunning) {
-  console.log('start of loop');
   await removeDeletedFilesFromDrive();
   await syncDriveFolder(rootFolderId);
   await saveCurrentSyncState();
 
+  console.log('Waiting for next loop');
   await delay(intervalMs);
 }
 
