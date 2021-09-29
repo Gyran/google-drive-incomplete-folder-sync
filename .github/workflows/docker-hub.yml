@@ -1,4 +1,4 @@
-name: "Docker: Docker Hub"
+name: 'Docker: Docker Hub'
 
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
@@ -7,7 +7,7 @@ name: "Docker: Docker Hub"
 
 on:
   push:
-    tags: [ 'v*.*.*' ]
+    tags: ['v*.*.*']
 
 env:
   IMAGE_NAME: gyran/google-drive-incomplete-folder-sync
@@ -22,7 +22,7 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@3
+        uses: docker/metadata-action@v3
         with:
           images: ${{ env.IMAGE_NAME }}
 
