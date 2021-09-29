@@ -4,7 +4,7 @@ WORKDIR /app
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 
-COPY package.json package-lock.json index.js ./
+COPY README.md package.json package-lock.json index.js ./
 COPY ./src ./src/
 
 ENV NODE_ENV production
