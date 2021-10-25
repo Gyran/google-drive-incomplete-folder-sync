@@ -17,7 +17,9 @@ import {
 } from './src/utils.js';
 
 const writeTokens = async (tokens) => {
-  await writeJSON(nodePath.join(CONFIG.configPath, 'tokens.json'), tokens);
+  await writeJSON(nodePath.join(CONFIG.configPath, 'tokens.json'), {
+    refresh_token: tokens.refresh_token,
+  });
 };
 const readTokens = async () => {
   try {
@@ -58,20 +60,40 @@ const setupAuth = async () => {
   );
 
   oauth2Client.on('tokens', (tokens) => {
-    console.log('setting tokens!');
-    writeTokens(tokens);
+    // only save the tokens if we actually have an refresh token
+    if (tokens.refresh_token) {
+      writeTokens(tokens);
+    }
   });
 
-  let tokens = await readTokens();
-  if (!tokens) {
+  let requestNewTokens = true;
+
+  const savedTokens = await readTokens();
+  if (savedTokens && savedTokens.refresh_token) {
+    oauth2Client.setCredentials({
+      refresh_token: savedTokens.refresh_token,
+    });
+
+    try {
+      const { token } = await oauth2Client.getAccessToken();
+      const info = await oauth2Client.getTokenInfo(token);
+
+      // we have verified that the token works, we don't need to request a new token
+      requestNewTokens = false;
+    } catch (error) {
+      console.log('failed to get token info, unset it!');
+    }
+  }
+
+  if (requestNewTokens) {
     const url = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
       scope: ['https://www.googleapis.com/auth/drive'],
     });
     const code = await prompt(`${url}\nCode:`);
-    tokens = (await oauth2Client.getToken(code)).tokens;
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
   }
-
-  oauth2Client.setCredentials(tokens);
 
   google.options({
     auth: oauth2Client,
